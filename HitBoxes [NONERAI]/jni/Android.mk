@@ -1,9 +1,10 @@
 LOCAL_PATH := $(call my-dir)
-MAIN_LOCAL_PATH := $(call my-dir)
+
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := HitBoxes
 
+# Флаги компиляции
 LOCAL_CFLAGS += -Wno-format-security -fvisibility=hidden -ffunction-sections -fdata-sections -w
 LOCAL_CFLAGS += -fno-rtti -fexceptions -fpermissive -Oz
 
@@ -11,18 +12,29 @@ LOCAL_CPPFLAGS += -Wno-format-security -fvisibility=hidden -ffunction-sections -
 LOCAL_CPPFLAGS += -fno-rtti -fexceptions -fpermissive -Oz -std=c++17
 LOCAL_CPPFLAGS += -Wno-c++17-narrowing -fms-extensions -DNDEBUG
 
-LOCAL_LDFLAGS += -Wl,--gc-sections -Wl,--strip-all -llog
+# Линковка логов Андроида
+LOCAL_LDLIBS += -llog
+LOCAL_LDFLAGS += -Wl,--gc-sections -Wl,--strip-all
 
-# Авто-поиск всех .cpp и .c файлов в jni и в jni/KittyMemory
-FILE_LIST := $(wildcard $(LOCAL_PATH)/*.cpp)
-FILE_LIST += $(wildcard $(LOCAL_PATH)/*.c)
-FILE_LIST += $(wildcard $(LOCAL_PATH)/KittyMemory/*.cpp)
+# --- [ЖЕЛЕЗОБЕТОННЫЙ МЕТОД] Передаем пути инклудов напрямую компилятору Clang ---
+LOCAL_CFLAGS += -I$(LOCAL_PATH)
+LOCAL_CFLAGS += -I$(LOCAL_PATH)/KittyMemory
+LOCAL_CFLAGS += -I$(LOCAL_PATH)/dobby
 
-# --- ПРАВИЛЬНЫЕ ПУТИ ДЛЯ ПОИСКА ЗАГОЛОВОЧНЫХ (.h) ФАЙЛОВ ---
-LOCAL_C_INCLUDES += $(LOCAL_PATH)
-LOCAL_C_INCLUDES += $(LOCAL_PATH)/KittyMemory
-LOCAL_C_INCLUDES += $(LOCAL_PATH)/dobby
+LOCAL_CPPFLAGS += -I$(LOCAL_PATH)
+LOCAL_CPPFLAGS += -I$(LOCAL_PATH)/KittyMemory
+LOCAL_CPPFLAGS += -I$(LOCAL_PATH)/dobby
 
-LOCAL_SRC_FILES := $(FILE_LIST:$(LOCAL_PATH)/%=%)
+# Стандартный поиск заголовочных файлов для NDK
+LOCAL_C_INCLUDES := $(LOCAL_PATH) \
+                    $(LOCAL_PATH)/KittyMemory \
+                    $(LOCAL_PATH)/dobby
+
+# Явное перечисление исходников, чтобы исключить любые ошибки файловой системы GitHub Actions
+LOCAL_SRC_FILES := main.cpp \
+                   KittyMemory/KittyMemory.cpp \
+                   KittyMemory/KittyArm64.cpp \
+                   KittyMemory/KittyPtrValidator.cpp \
+                   KittyMemory/KittyScanner.cpp
 
 include $(BUILD_SHARED_LIBRARY)
