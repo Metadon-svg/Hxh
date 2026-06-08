@@ -13,14 +13,15 @@ LOCAL_CPPFLAGS += -Wno-c++17-narrowing -fms-extensions -DNDEBUG
 
 LOCAL_LDFLAGS += -Wl,--gc-sections -Wl,--strip-all -llog
 
-# Поиск исходников (тут wildcard работает отлично, так как ищет файлы *.cpp)
+# Авто-поиск всех .cpp и .c файлов в jni и в jni/KittyMemory
 FILE_LIST := $(wildcard $(LOCAL_PATH)/*.cpp)
 FILE_LIST += $(wildcard $(LOCAL_PATH)/*.c)
 FILE_LIST += $(wildcard $(LOCAL_PATH)/KittyMemory/*.cpp)
 
-# ИСПРАВЛЕНО: Для путей поиска заголовочных (.h) файлов пишем прямые пути без $(wildcard)
+# --- ПРАВИЛЬНЫЕ ПУТИ ДЛЯ ПОИСКА ЗАГОЛОВОЧНЫХ (.h) ФАЙЛОВ ---
 LOCAL_C_INCLUDES += $(LOCAL_PATH)
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/KittyMemory
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/dobby
 
 LOCAL_SRC_FILES := $(FILE_LIST:$(LOCAL_PATH)/%=%)
 
