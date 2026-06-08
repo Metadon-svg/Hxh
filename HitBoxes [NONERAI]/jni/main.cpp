@@ -6,7 +6,7 @@
 
 // Подключаем Dobby и KittyMemory, которые прописаны в Android.mk
 #include "dobby.h"
-#include "KittyMemory/KittyMemory.h"
+#include "KittyMemory.h"
 
 // Добавляем твой заголовочный файл Utils
 #include "Utils.h"
