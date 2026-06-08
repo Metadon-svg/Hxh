@@ -6,10 +6,10 @@
 #include <stdio.h>
 #include <android/log.h>
 
-// Подключаем утилиты, Dobby для хуков и KittyMemory для записи в память либки
+// Подключаем утилиты, Dobby для хуков и KittyMemory (исправленный путь!)
 #include "Utils.h"
 #include "dobby.h"
-#include "KittyMemory/KittyMemory.h"
+#include "KittyMemory.h"
 
 #define LOG_TAG "BR_HITBOX_MOD"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -53,7 +53,7 @@ void ApplyHitboxChanges(float MultiplyValue) {
         uintptr_t RIGHTARM   = LEFTARM + 0x18;
         uintptr_t LEFTLEG_1  = RIGHTARM + 0x18;
         uintptr_t RIGHTLEG_1 = LEFTLEG_1 + 0x18;
-        uintptr_t LEFTLEG_2 = RIGHTLEG_1 + 0x18;
+        uintptr_t LEFTLEG_2  = RIGHTLEG_1 + 0x18;
         uintptr_t RIGHTLEG_2 = LEFTLEG_2 + 0x18;
     #endif
 
