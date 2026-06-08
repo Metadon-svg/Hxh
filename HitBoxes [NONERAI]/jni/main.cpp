@@ -1,160 +1,85 @@
-#include <iostream>
-#include <chrono>
-#include <thread>
-#include <string>
-#include <map>
-#include <functional>
+#include <jni.h>
+#include <string.h>
 #include <pthread.h>
 #include <unistd.h>
-#include <jni.h>
+#include <android/log.h>
 
-// Подключаем Dobby Hook для инлайн-хуков
-#include "dobby.h" 
+// Подключаем Dobby и KittyMemory, которые прописаны в Android.mk
+#include "dobby.h"
+#include "KittyMemory/KittyMemory.h"
+
+// Добавляем твой заголовочный файл Utils
 #include "Utils.h"
 
-using namespace std;
+#define LOG_TAG "HITBOX_MOD"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
-#define libName "libblackrussia-client.so"
+// Указатель на оригинальную функцию игры
+void (*orig_SendCommand)(const char* text) = nullptr;
 
-// --- Глобальные переменные состояния ---
-JavaVM* g_JavaVM = nullptr;
-bool hitboxesEnabled = true;
-float MultiplyValue = 1.5f;
+// Наша функция-хук, которая перехватывает ввод игрока
+void new_SendCommand(const char* text) {
+    if (text != nullptr) {
+        // Пишем в логи абсолютно всё, что ввёл игрок (для тестов)
+        LOGI("Игрок отправил в чат/консоль: %s", text);
 
-// --- Настройки смещений хитбоксов ---
-#if defined(__aarch64__)
-    uintptr_t HEAD = 0x141DF68;
-    uintptr_t STEP = 0x20;
-#else
-    uintptr_t HEAD = 0x141DF68;
-    uintptr_t STEP = 0x18;
-#endif
-
-// --- СИСТЕМА РЕГИСТРАЦИИ КОМАНД ---
-using CmdCallback = std::function<void(const std::string&)>;
-std::map<std::string, CmdCallback> cmdRegistry;
-
-void RegisterCMD(const std::string& cmdName, CmdCallback callback) {
-    cmdRegistry[cmdName] = callback;
-}
-
-// Инициализация всех команд софта
-void SetupCommands() {
-    
-    // Команда /sizehb [значение / off]
-    RegisterCMD("/sizehb", [](const std::string& args) {
-        if (args == "off" || args.empty()) {
-            hitboxesEnabled = false;
-            // Локальный вывод добавишь сюда, когда найдешь адрес AddMessageToChat
-            return;
-        }
-
-        char* endptr;
-        float val = strtof(args.c_str(), &endptr);
-
-        // Проверяем, число ли введено
-        if (endptr != args.c_str()) {
-            if (val > 5.0f) val = 5.0f;
-            if (val < 1.0f) val = 1.0f;
-
-            MultiplyValue = val;
-            hitboxesEnabled = true;
-            // Фоновый поток main_thread мгновенно применит новый MultiplyValue
-        }
-    });
-
-    // Инфо-команда
-    RegisterCMD("/hbinfo", [](const std::string& args) {
-        // Локальный вывод информации о разработчике
-    });
-}
-
-// Парсер и обработчик ввода
-bool ProcessPlayerCommand(const std::string& input) {
-    if (input.empty() || input[0] != '/') return false;
-
-    size_t spacePos = input.find(' ');
-    std::string cmd = (spacePos == std::string::npos) ? input : input.substr(0, spacePos);
-    std::string args = (spacePos == std::string::npos) ? "" : input.substr(spacePos + 1);
-
-    auto it = cmdRegistry.find(cmd);
-    if (it != cmdRegistry.end()) {
-        it->second(args); 
-        return true; // Возвращаем true, чтобы заблокировать отправку текста на сервер
-    }
-
-    return false; // Если команда не наша (например /report, /time) — отдаем игре
-}
-
-// --- ХУК НА ОТПРАВКУ ТЕКСТА ---
-// Указатель на оригинальную JNI-функцию отправки сообщений игры
-void (*orig_sendChatMessage)(JNIEnv* env, jobject thiz, jstring text) = nullptr;
-
-// Наша функция-перехватчик
-void hook_sendChatMessage(JNIEnv* env, jobject thiz, jstring text) {
-    if (!env || !text) return;
-
-    // Конвертируем jstring в std::string для проверки в ProcessPlayerCommand
-    const char* c_str = env->GetStringUTFChars(text, nullptr);
-    if (c_str) {
-        std::string playerInput(c_str);
-        env->ReleaseStringUTFChars(text, c_str);
-
-        // Передаем строку в нашу систему команд
-        if (ProcessPlayerCommand(playerInput)) {
-            // Если это наша команда — выходим! Оригинал игры не вызовется, сервер ничего не получит
+        // 1. Обработка команды /sizehb
+        if (strstr(text, "sizehb") != nullptr) {
+            LOGI("==== Сработал перехват команды /sizehb! ====");
+            
+            /* ЗДЕСЬ НАПИШИ СВОЙ КОД ДЛЯ ИЗМЕНЕНИЯ РАЗМЕРА ХИТБОКСОВ.
+               Здесь ты уже можешь использовать функции из Utils.h, если они там есть.
+            */
+            
+            // ВАЖНО: возвращаем пустоту, чтобы игра не писала "Команда не найдена"
             return; 
         }
+
+        // 2. Обработка команды /hbinfo
+        if (strstr(text, "hbinfo") != nullptr) {
+            LOGI("==== Сработал перехват команды /hbinfo! ====");
+            
+            /* ЗДЕСЬ НАПИШИ СВОЙ КОД ДЛЯ ВЫВОДА ИНФОРМАЦИИ. */
+            
+            return; // Блокируем ошибку игры
+        }
     }
 
-    // Если это обычное сообщение или чужая команда — пропускаем её в игру как обычно
-    if (orig_sendChatMessage) {
-        orig_sendChatMessage(env, thiz, text);
+    // Если это была любая другая обычная команда или сообщение — отдаем её игре обратно
+    if (orig_SendCommand != nullptr) {
+        orig_SendCommand(text);
     }
 }
 
-// --- ОСНОВНОЙ ПОТОК ПЛАГИНА ---
-void *main_thread(void *) {
-    // Ждем полной загрузки библиотеки игры
-    do { sleep(1); } while (!isLibraryLoaded(libName));
-
-    // Настраиваем команды
-    SetupCommands();
-
-    uintptr_t libBase = getAbsoluteAddress(libName, 0);
-    if (libBase) {
-        // Ставим хук через Dobby на JNI-метод отправки сообщений (0x00cddf04)
-        DobbyHook((void*)(libBase + 0x00cddf04), (void*)hook_sendChatMessage, (void**)&orig_sendChatMessage);
+// Поток, который ждет загрузки игры и ставит хук
+void* hack_thread(void*) {
+    proc_info libInfo;
+    
+    // Ждем, пока Блек Раша загрузит свой основной бинарник в память.
+    while (!KittyMemory::getLibraryProcInfo("libSAMP.so", libInfo)) {
+        sleep(1);
     }
+    
+    uintptr_t libBase = libInfo.base;
+    LOGI("Библиотека игры найдена по адресу: 0x%lx", libBase);
 
-    // Размеры костей по умолчанию
-    float defaults[10] = { 0.15f, 0.2f, 0.25f, 0.25f, 0.16f, 0.16f, 0.2f, 0.2f, 0.15f, 0.15f };
+    // !!! ВНИМАНИЕ: Замени 0x123456 на ТВОЙ реальный оффсет функции SendCommand !!!
+    uintptr_t target_offset = 0x123456; 
+    void* target_address = (void*)(libBase + target_offset);
 
-    // Цикл модификации памяти (работает независимо от команд)
-    while (true) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(8)); // ~125 тиков под 120Hz экраны
-
-        float currentMultiplier = hitboxesEnabled ? MultiplyValue : 1.0f;
-        uintptr_t baseAddress = getAbsoluteAddress(libName, HEAD);
-
-        if (baseAddress) {
-            for (int i = 0; i < 10; i++) {
-                Utils::WriteMemory<float>(baseAddress + (i * STEP), defaults[i] * currentMultiplier);
-            }
-        }
+    // Ставим хук с помощью Dobby
+    if (DobbyHook(target_address, (void*)new_SendCommand, (void**)&orig_SendCommand) == 0) {
+        LOGI("Хук Dobby на команды УСПЕШНО установлен!");
+    } else {
+        LOGE("ОШИБКА: Dobby не смог примениться к оффсету 0x%lx", target_offset);
     }
 
     return nullptr;
 }
 
-// --- Сохраняем JavaVM при инициализации .so ---
-extern "C" jint JNI_OnLoad(JavaVM* vm, void* reserved) {
-    g_JavaVM = vm;
-    return JNI_VERSION_1_6;
-}
-
-// Конструктор плагина
-__attribute__((constructor)) void _init(){
-    pthread_t ptid;
-    pthread_create(&ptid, NULL, main_thread, NULL);
+// Этот блок автоматически сработает при инжекте .so файла в игру
+__attribute__((constructor)) void init() {
+    pthread_t t;
+    pthread_create(&t, nullptr, hack_thread, nullptr);
 }
